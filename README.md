@@ -1,6 +1,23 @@
-# CutPro
+<p align="center">
+  <img src="docs/assets/cutpro_logo.png" alt="CutPro Studio Logo" width="160" height="160" />
+</p>
 
-**Professional Video Editing. Creative Motion Graphics.**
+<h1 align="center">CutPro</h1>
+
+<p align="center">
+  <strong>Professional Video Editing. Creative Motion Graphics.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Android%208.0%2B-blue?logo=android" alt="Platform" />
+  <img src="https://img.shields.io/badge/Language-Kotlin-purple?logo=kotlin" alt="Language" />
+  <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-green" alt="UI" />
+  <img src="https://img.shields.io/badge/Engine-Media3%20ExoPlayer%20%26%20Transformer-orange" alt="Media3" />
+  <img src="https://img.shields.io/badge/License-MIT-teal" alt="License" />
+  <img src="https://img.shields.io/badge/Tests-915%2F915%20Passing-brightgreen" alt="Tests" />
+</p>
+
+---
 
 CutPro is an offline-first, native Android video editing and motion graphics studio built entirely with Kotlin and Jetpack Compose. Inspired by modern desktop non-linear editing suites, CutPro delivers multitrack timeline editing, deterministic motion graphics animation, audio DSP mixing, AI-assisted smart tools, and genuine Media3 Transformer MP4 video export directly on Android phones and tablets.
 
