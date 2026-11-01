@@ -1,0 +1,47 @@
+package com.cutpro.core.designsystem.theme
+
+import androidx.compose.ui.graphics.Color
+
+// CutPro Dark Slate Theme Palette (Default)
+val DarkBackground = Color(0xFF121316)
+val DarkSurface = Color(0xFF1E2024)
+val DarkSurfaceContainer = Color(0xFF2A2D34)
+val DarkSurfaceContainerHigh = Color(0xFF32363E)
+val DarkPrimary = Color(0xFF4A88DA)
+val DarkSecondary = Color(0xFF6BA3F5)
+val DarkTertiary = Color(0xFF3A6CA8)
+val DarkOnBackground = Color(0xFFE6E8EC)
+val DarkOnSurface = Color(0xFFE6E8EC)
+val DarkOnSurfaceVariant = Color(0xFFB0B4BC)
+val DarkOnPrimary = Color(0xFFFFFFFF)
+val DarkOutline = Color(0xFF3F434C)
+val DarkOutlineVariant = Color(0xFF2E323A)
+val DarkError = Color(0xFFCF6679)
+val DarkOnError = Color(0xFF1A0005)
+
+// CutPro Light Theme Palette
+val LightBackground = Color(0xFFF8F9FA)
+val LightSurface = Color(0xFFFFFFFF)
+val LightSurfaceContainer = Color(0xFFEEF0F3)
+val LightSurfaceContainerHigh = Color(0xFFE4E7EB)
+val LightPrimary = Color(0xFF2A6AC0)
+val LightSecondary = Color(0xFF4A88DA)
+val LightTertiary = Color(0xFF1A4A88)
+val LightOnBackground = Color(0xFF1A1C1E)
+val LightOnSurface = Color(0xFF1A1C1E)
+val LightOnSurfaceVariant = Color(0xFF49454F)
+val LightOnPrimary = Color(0xFFFFFFFF)
+val LightOutline = Color(0xFFD0D4DC)
+val LightOutlineVariant = Color(0xFFE0E3E8)
+val LightError = Color(0xFFB00020)
+val LightOnError = Color(0xFFFFFFFF)
+
+// Accent and Track Colors
+val VideoTrackColor = Color(0xFF285494)
+val AudioTrackColor = Color(0xFF2E7D5A)
+val TextTrackColor = Color(0xFF8E44AD)
+val OverlayTrackColor = Color(0xFFD35400)
+val CaptionTrackColor = Color(0xFF16A085)
+val PlayheadColor = Color(0xFFFF5252)
+val SnappingGuideColor = Color(0xFF00E676)
+val SelectionBorderColor = Color(0xFF64B5F6)
