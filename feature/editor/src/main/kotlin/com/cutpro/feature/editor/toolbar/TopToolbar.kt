@@ -54,6 +54,7 @@ fun TopToolbar(
     onTitleChanged: (String) -> Unit,
     onAspectRatioChanged: (CanvasAspectRatio) -> Unit,
     onExportClick: () -> Unit,
+    onAddMediaClick: () -> Unit = {},
     onOpenPromptSheet: () -> Unit = {},
     onOpenCodeRunnerSheet: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -102,6 +103,14 @@ fun TopToolbar(
                 contentDescription = "Redo",
                 onClick = onRedoClick,
                 enabled = canRedo
+            )
+
+            // Add Media Button
+            CutProIconButton(
+                icon = CutProIcons.Add,
+                contentDescription = "Import Video or Photo",
+                onClick = onAddMediaClick,
+                tint = MaterialTheme.colorScheme.primary
             )
 
             // AI Tools Menu

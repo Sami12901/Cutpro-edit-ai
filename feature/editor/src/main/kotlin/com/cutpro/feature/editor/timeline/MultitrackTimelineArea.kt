@@ -98,6 +98,7 @@ fun MultitrackTimelineArea(
     onSelectClip: (TimelineClip, String, TrackType) -> Unit,
     onDeselect: () -> Unit,
     onRepositionClip: (TimelineClip, Long) -> Unit,
+    onAddMediaClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // 100 dp per second at zoomLevel 1.0f
@@ -117,6 +118,7 @@ fun MultitrackTimelineArea(
             isClipSelected = selectedClipId != null,
             isSnappingEnabled = isSnappingEnabled,
             zoomLevel = zoomLevel,
+            onAddMediaClick = onAddMediaClick,
             onSplitClick = onSplitClick,
             onTrimLeftClick = onTrimLeftClick,
             onTrimRightClick = onTrimRightClick,
@@ -215,6 +217,7 @@ fun TimelineHeaderToolbar(
     isClipSelected: Boolean,
     isSnappingEnabled: Boolean,
     zoomLevel: Float,
+    onAddMediaClick: () -> Unit = {},
     onSplitClick: () -> Unit,
     onTrimLeftClick: () -> Unit,
     onTrimRightClick: () -> Unit,
@@ -229,10 +232,18 @@ fun TimelineHeaderToolbar(
             .fillMaxWidth()
             .height(48.dp)
             .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            // Add Media Action (Video, Image, Audio)
+            CutProIconButton(
+                icon = CutProIcons.Add,
+                contentDescription = "Add media to timeline",
+                onClick = onAddMediaClick,
+                tint = MaterialTheme.colorScheme.primary
+            )
+
             // Split Action
             CutProIconButton(
                 icon = CutProIcons.Split,

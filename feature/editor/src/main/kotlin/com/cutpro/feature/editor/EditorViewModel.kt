@@ -1,13 +1,18 @@
 package com.cutpro.feature.editor
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cutpro.core.ai.gate.PlanExecutionEngine
 import com.cutpro.core.ai.script.CutProScriptCompiler
 import com.cutpro.core.ai.script.CutProScriptParser
+import com.cutpro.core.data.database.dao.ClipDao
 import com.cutpro.core.data.database.dao.ProjectDao
+import com.cutpro.core.data.database.dao.TrackDao
 import com.cutpro.core.data.database.mapper.toDomain
 import com.cutpro.core.data.database.mapper.toEntity
+import com.cutpro.core.data.media.MediaImportManager
 import com.cutpro.core.model.CanvasAspectRatio
 import com.cutpro.core.model.ClipAudioProperties
 import com.cutpro.core.model.ClipFitMode
@@ -41,6 +46,8 @@ import java.util.UUID
 
 class EditorViewModel(
     private val projectDao: ProjectDao? = null,
+    private val trackDao: TrackDao? = null,
+    private val clipDao: ClipDao? = null,
     private val timelineEngine: TimelineEngine = StandardTimelineEngine(),
     private val undoRedoManager: UndoRedoManager = UndoRedoManager(maxHistoryLimit = 50),
     val playbackCoordinator: PlaybackCoordinator? = null
@@ -411,6 +418,95 @@ class EditorViewModel(
             Result.success(plan.actions.size)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    fun importAndAddMedia(
+        context: Context,
+        uris: List<Uri>,
+        targetTrackType: TrackType = TrackType.VIDEO,
+        insertAtPlayhead: Boolean = true
+    ) {
+        if (uris.isEmpty()) return
+        val currentProject = _uiState.value.project ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isImportingMedia = true, importStatusMessage = "Importing media...") }
+            try {
+                val importManager = MediaImportManager.create(context)
+                var workingProject = currentProject
+
+                // Ensure target track exists
+                var targetTrack = workingProject.tracks.firstOrNull { it.type == targetTrackType }
+                if (targetTrack == null) {
+                    val newTrack = TimelineTrack(
+                        id = UUID.randomUUID().toString(),
+                        name = when (targetTrackType) {
+                            TrackType.OVERLAY -> "Overlay 1"
+                            TrackType.AUDIO -> "Audio 2"
+                            TrackType.VIDEO -> "Video 2"
+                            else -> "Track ${workingProject.tracks.size + 1}"
+                        },
+                        type = targetTrackType,
+                        zIndex = workingProject.tracks.size
+                    )
+                    workingProject = workingProject.copy(tracks = workingProject.tracks + newTrack)
+                    targetTrack = newTrack
+                }
+
+                val currentTrackClips = workingProject.tracks.firstOrNull { it.id == targetTrack.id }?.clips ?: emptyList()
+                var currentInsertionUs = if (insertAtPlayhead) {
+                    _uiState.value.playheadUs
+                } else {
+                    currentTrackClips.maxOfOrNull { it.timelineEndUs } ?: 0L
+                }
+
+                var lastAddedClip: TimelineClip? = null
+
+                for (uri in uris) {
+                    val result = importManager.importMedia(workingProject.id, uri)
+                    if (result.isSuccess) {
+                        val mediaInfo = result.getOrThrow()
+                        val clipDurationUs = if (mediaInfo.mimeType.startsWith("image/")) {
+                            3_000_000L // 3.0s default image duration
+                        } else {
+                            mediaInfo.durationUs
+                        }
+
+                        val newClip = TimelineClip(
+                            id = UUID.randomUUID().toString(),
+                            trackId = targetTrack.id,
+                            mediaSource = mediaInfo,
+                            timelineStartUs = currentInsertionUs,
+                            timelineDurationUs = clipDurationUs,
+                            sourceInUs = 0L,
+                            sourceOutUs = clipDurationUs
+                        )
+
+                        val cmd = AddClipCommand(targetTrack.id, newClip, "Add Media: ${mediaInfo.fileName}")
+                        workingProject = undoRedoManager.execute(cmd, workingProject)
+                        currentInsertionUs += clipDurationUs
+                        lastAddedClip = newClip
+                    }
+                }
+
+                playbackCoordinator?.setTimeline(workingProject)
+                _uiState.update {
+                    it.copy(
+                        project = workingProject,
+                        canUndo = undoRedoManager.canUndo,
+                        canRedo = undoRedoManager.canRedo,
+                        isImportingMedia = false,
+                        importStatusMessage = ""
+                    )
+                }
+
+                if (lastAddedClip != null) {
+                    selectClip(lastAddedClip, targetTrack.id, targetTrack.type)
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isImportingMedia = false, importStatusMessage = "") }
+            }
         }
     }
 

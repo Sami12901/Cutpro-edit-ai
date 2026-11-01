@@ -74,4 +74,13 @@ class MediaImportManager(
 
         return Uri.fromFile(destinationFile).toString()
     }
+
+    companion object {
+        fun create(context: Context): MediaImportManager =
+            MediaImportManager(
+                context = context.applicationContext,
+                permissionManager = UriPermissionManager(context.applicationContext),
+                metadataExtractor = MediaMetadataExtractor(context.applicationContext)
+            )
+    }
 }

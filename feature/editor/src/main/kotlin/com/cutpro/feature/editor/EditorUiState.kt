@@ -23,7 +23,9 @@ data class EditorUiState(
     val isEditingTitle: Boolean = false,
     val titleInput: String = "",
     val isPromptSheetVisible: Boolean = false,
-    val isCodeRunnerSheetVisible: Boolean = false
+    val isCodeRunnerSheetVisible: Boolean = false,
+    val isImportingMedia: Boolean = false,
+    val importStatusMessage: String = ""
 ) {
     val isInspectorCollapsed: Boolean get() = selectedClip == null
 
@@ -45,6 +47,21 @@ data class EditorUiState(
             val min = totalSec / 60L
             val sec = totalSec % 60L
             return String.format(Locale.US, "%02d:%02d:%02d", min, sec, frames)
+        }
+
+    val activeImageClip: TimelineClip?
+        get() {
+            val p = project ?: return null
+            val overlayClip = p.tracks
+                .filter { it.type == TrackType.OVERLAY && it.isVisible }
+                .flatMap { it.clips }
+                .firstOrNull { it.containsTimelineTimestamp(playheadUs) && it.mediaSource.mimeType.startsWith("image/") }
+            if (overlayClip != null) return overlayClip
+
+            return p.tracks
+                .filter { it.type == TrackType.VIDEO && it.isVisible }
+                .flatMap { it.clips }
+                .firstOrNull { it.containsTimelineTimestamp(playheadUs) && it.mediaSource.mimeType.startsWith("image/") }
         }
 
     fun getInspectorTabsForSelectedClip(): List<String> {

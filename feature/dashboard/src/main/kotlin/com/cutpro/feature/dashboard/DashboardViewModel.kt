@@ -1,15 +1,21 @@
 package com.cutpro.feature.dashboard
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cutpro.core.data.database.dao.ClipDao
 import com.cutpro.core.data.database.dao.ProjectDao
+import com.cutpro.core.data.database.dao.TrackDao
 import com.cutpro.core.data.database.entity.ProjectEntity
 import com.cutpro.core.data.database.mapper.toDomain
 import com.cutpro.core.data.database.mapper.toEntity
+import com.cutpro.core.data.media.MediaImportManager
 import com.cutpro.core.model.CanvasAspectRatio
 import com.cutpro.core.model.ExportFrameRate
 import com.cutpro.core.model.ExportResolution
 import com.cutpro.core.model.ProjectManifest
+import com.cutpro.core.model.TimelineClip
 import com.cutpro.core.model.TimelineTrack
 import com.cutpro.core.model.TrackType
 import com.cutpro.feature.dashboard.component.BuiltInTemplates
@@ -24,7 +30,9 @@ import java.util.Locale
 import java.util.UUID
 
 class DashboardViewModel(
-    private val projectDao: ProjectDao? = null
+    private val projectDao: ProjectDao? = null,
+    private val trackDao: TrackDao? = null,
+    private val clipDao: ClipDao? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -109,6 +117,7 @@ class DashboardViewModel(
 
             if (projectDao != null) {
                 projectDao.insertProject(manifest.toEntity())
+                trackDao?.insertTracks(listOf(videoTrack.toEntity(projectId), audioTrack.toEntity(projectId)))
             } else {
                 // In-memory fallback
                 val newProjectItem = ProjectItemUiModel(
@@ -123,6 +132,110 @@ class DashboardViewModel(
                     state.copy(projects = listOf(newProjectItem) + state.projects)
                 }
             }
+            onCreated(projectId)
+        }
+    }
+
+    fun createNewProjectWithMedia(
+        context: Context,
+        uris: List<Uri>,
+        title: String = "Untitled Project",
+        aspectRatio: CanvasAspectRatio = CanvasAspectRatio.RATIO_16_9,
+        onCreated: (String) -> Unit
+    ) {
+        if (uris.isEmpty()) {
+            createNewProject(title, aspectRatio, onCreated)
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val projectId = UUID.randomUUID().toString()
+            val importManager = MediaImportManager.create(context)
+
+            val videoTrackId = UUID.randomUUID().toString()
+            val audioTrackId = UUID.randomUUID().toString()
+
+            val importedClips = mutableListOf<TimelineClip>()
+            var currentStartUs = 0L
+
+            for (uri in uris) {
+                val mediaResult = importManager.importMedia(projectId, uri)
+                if (mediaResult.isSuccess) {
+                    val mediaInfo = mediaResult.getOrThrow()
+                    val clipDurationUs = if (mediaInfo.mimeType.startsWith("image/")) {
+                        3_000_000L // 3 seconds default for images
+                    } else {
+                        mediaInfo.durationUs
+                    }
+                    val clip = TimelineClip(
+                        id = UUID.randomUUID().toString(),
+                        trackId = videoTrackId,
+                        mediaSource = mediaInfo,
+                        timelineStartUs = currentStartUs,
+                        timelineDurationUs = clipDurationUs,
+                        sourceInUs = 0L,
+                        sourceOutUs = clipDurationUs
+                    )
+                    importedClips.add(clip)
+                    currentStartUs += clipDurationUs
+                }
+            }
+
+            val finalClips = importedClips.toList()
+            val totalDurationUs = finalClips.maxOfOrNull { it.timelineEndUs } ?: 0L
+
+            val videoTrack = TimelineTrack(
+                id = videoTrackId,
+                name = "Video 1",
+                type = TrackType.VIDEO,
+                zIndex = 0,
+                clips = finalClips
+            )
+            val audioTrack = TimelineTrack(
+                id = audioTrackId,
+                name = "Audio 1",
+                type = TrackType.AUDIO,
+                zIndex = 1,
+                clips = emptyList()
+            )
+
+            val manifest = ProjectManifest(
+                id = projectId,
+                title = title,
+                createdAt = System.currentTimeMillis(),
+                modifiedAt = System.currentTimeMillis(),
+                aspectRatio = aspectRatio,
+                defaultResolution = _uiState.value.defaultResolution,
+                defaultFrameRate = ExportFrameRate.FPS_30,
+                durationUs = totalDurationUs,
+                tracks = listOf(videoTrack, audioTrack)
+            )
+
+            if (projectDao != null) {
+                projectDao.insertProject(manifest.toEntity())
+                trackDao?.insertTracks(listOf(videoTrack.toEntity(projectId), audioTrack.toEntity(projectId)))
+                if (finalClips.isNotEmpty()) {
+                    clipDao?.insertClips(finalClips.map { it.toEntity() })
+                }
+            } else {
+                val durationSec = totalDurationUs / 1_000_000L
+                val min = durationSec / 60
+                val sec = durationSec % 60
+                val formattedDuration = String.format(Locale.US, "%02d:%02d", min, sec)
+                val newProjectItem = ProjectItemUiModel(
+                    id = manifest.id,
+                    title = manifest.title,
+                    durationFormatted = formattedDuration,
+                    durationUs = totalDurationUs,
+                    aspectRatioLabel = "${aspectRatio.widthRatio}:${aspectRatio.heightRatio}",
+                    lastModifiedFormatted = "Today"
+                )
+                _uiState.update { state ->
+                    state.copy(projects = listOf(newProjectItem) + state.projects)
+                }
+            }
+            _uiState.update { it.copy(isLoading = false) }
             onCreated(projectId)
         }
     }

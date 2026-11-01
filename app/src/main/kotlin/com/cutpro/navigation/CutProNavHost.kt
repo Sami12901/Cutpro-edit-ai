@@ -43,7 +43,11 @@ fun CutProNavHost(
     ) {
         composable(CutProDestinations.DASHBOARD) {
             val dashboardViewModel: DashboardViewModel = viewModel {
-                DashboardViewModel(projectDao = database.projectDao())
+                DashboardViewModel(
+                    projectDao = database.projectDao(),
+                    trackDao = database.trackDao(),
+                    clipDao = database.clipDao()
+                )
             }
             DashboardScreen(
                 viewModel = dashboardViewModel,

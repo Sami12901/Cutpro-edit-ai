@@ -1,6 +1,9 @@
 package com.cutpro.feature.editor.canvas
 
+import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,14 +25,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
@@ -40,6 +52,11 @@ import com.cutpro.core.designsystem.icon.CutProIcons
 import com.cutpro.core.designsystem.theme.DarkBackground
 import com.cutpro.core.designsystem.theme.DarkSurface
 import com.cutpro.core.model.CanvasAspectRatio
+import com.cutpro.core.model.TimelineClip
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileInputStream
 
 /**
  * Preview canvas area rendering the aspect-ratio framed presentation container,
@@ -58,8 +75,39 @@ fun PreviewCanvasArea(
     onStepBackwardClick: () -> Unit,
     onToggleGuideLines: () -> Unit,
     modifier: Modifier = Modifier,
-    player: Player? = null
+    player: Player? = null,
+    activeImageClip: TimelineClip? = null
 ) {
+    val context = LocalContext.current
+    var imageBitmap by remember(activeImageClip?.mediaSource?.uriString) {
+        mutableStateOf<ImageBitmap?>(null)
+    }
+
+    LaunchedEffect(activeImageClip?.mediaSource?.uriString) {
+        val uriStr = activeImageClip?.mediaSource?.uriString
+        if (uriStr != null && activeImageClip.mediaSource.mimeType.startsWith("image/")) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val uri = Uri.parse(uriStr)
+                    val stream = if (uri.scheme == "file") {
+                        FileInputStream(File(uri.path ?: uriStr))
+                    } else {
+                        context.contentResolver.openInputStream(uri)
+                    }
+                    val bmp = BitmapFactory.decodeStream(stream)
+                    stream?.close()
+                    if (bmp != null) {
+                        imageBitmap = bmp.asImageBitmap()
+                    }
+                } catch (e: Exception) {
+                    imageBitmap = null
+                }
+            }
+        } else {
+            imageBitmap = null
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -75,7 +123,15 @@ fun PreviewCanvasArea(
                 .background(DarkSurface),
             contentAlignment = Alignment.Center
         ) {
-            if (player != null) {
+            val currentBitmap = imageBitmap
+            if (currentBitmap != null) {
+                Image(
+                    bitmap = currentBitmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            } else if (player != null) {
                 AndroidView(
                     factory = { ctx ->
                         PlayerView(ctx).apply {

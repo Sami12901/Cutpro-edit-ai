@@ -13,8 +13,9 @@ EMOJI_PATTERN = re.compile(
     "\U0001F300-\U0001F5FF"  # symbols & pictographs
     "\U0001F680-\U0001F6FF"  # transport & map symbols
     "\U0001F1E0-\U0001F1FF"  # flags (iOS)
-    "\U00002702-\U000027B0"
-    "\U000024C2-\U0001F251"
+    "\U00002702-\U000027B0"  # dingbats
+    "\U000024C2"              # circled M
+    "\U0001F200-\U0001F251"  # enclosed ideographic
     "\U0001F900-\U0001F9FF"  # supplemental symbols and pictographs
     "\U0001FA70-\U0001FAFF"  # symbols and pictographs extended-a
     "]+",
