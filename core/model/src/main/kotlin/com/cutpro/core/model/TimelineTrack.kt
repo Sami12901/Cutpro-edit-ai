@@ -8,7 +8,7 @@ data class TimelineTrack(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val type: TrackType,
-    val zIndex: Int,
+    val zIndex: Int = 0,
     val isMuted: Boolean = false,
     val isLocked: Boolean = false,
     val isVisible: Boolean = true,

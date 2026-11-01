@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -50,9 +51,16 @@ import com.cutpro.core.designsystem.component.CutProIconButton
 import com.cutpro.core.designsystem.component.DurationBadge
 import com.cutpro.core.designsystem.component.accessibleTouchTarget
 import com.cutpro.core.designsystem.icon.CutProIcons
+import com.cutpro.core.model.BlendMode
 import com.cutpro.core.model.ClipAudioProperties
 import com.cutpro.core.model.ClipFitMode
+import com.cutpro.core.model.ClipMask
 import com.cutpro.core.model.ClipTransform
+import com.cutpro.core.model.ColorAdjustments
+import com.cutpro.core.model.LutFilterType
+import com.cutpro.core.model.MaskType
+import com.cutpro.core.model.SpeedCurve
+import com.cutpro.core.model.SpeedCurvePreset
 import com.cutpro.core.model.TimelineClip
 import com.cutpro.core.model.TrackType
 import java.util.Locale
@@ -76,6 +84,9 @@ fun ContextualPropertiesInspector(
     onTransformChanged: (ClipTransform) -> Unit,
     onAudioChanged: (ClipAudioProperties) -> Unit,
     onSpeedChanged: (Float) -> Unit,
+    onColorChanged: (ColorAdjustments) -> Unit = {},
+    onFilterChanged: (LutFilterType) -> Unit = {},
+    onSpeedCurveChanged: (SpeedCurve) -> Unit = {},
     onCloseClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -90,7 +101,7 @@ fun ContextualPropertiesInspector(
         if (selectedClip == null) return@AnimatedVisibility
 
         val tabs = when (trackType) {
-            TrackType.VIDEO, TrackType.OVERLAY -> listOf("Transform", "Audio", "Speed", "Cut")
+            TrackType.VIDEO, TrackType.OVERLAY -> listOf("Transform", "Color", "Filters", "Mask & Blend", "Speed Curve", "Audio", "Speed", "Cut")
             TrackType.AUDIO -> listOf("Volume", "Fades", "Speed")
             TrackType.TEXT, TrackType.CAPTION -> listOf("Typography", "Animation", "Style")
             null -> emptyList()
@@ -183,6 +194,22 @@ fun ContextualPropertiesInspector(
                             transform = selectedClip.transform,
                             fitMode = selectedClip.fitMode,
                             onTransformChanged = onTransformChanged
+                        )
+                        "Color" -> ColorTabContent(
+                            adjustments = selectedClip.colorAdjustments,
+                            onColorChanged = onColorChanged
+                        )
+                        "Filters" -> FiltersTabContent(
+                            activeFilter = selectedClip.filterType,
+                            onFilterChanged = onFilterChanged
+                        )
+                        "Mask & Blend" -> MaskAndBlendTabContent(
+                            transform = selectedClip.transform,
+                            onTransformChanged = onTransformChanged
+                        )
+                        "Speed Curve" -> SpeedCurveTabContent(
+                            activeCurve = selectedClip.speedCurve,
+                            onSpeedCurveChanged = onSpeedCurveChanged
                         )
                         "Audio", "Volume" -> AudioTabContent(
                             audio = selectedClip.audioProperties,
@@ -450,6 +477,156 @@ fun PropertySliderRow(
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.width(56.dp)
         )
+    }
+}
+
+@Composable
+fun ColorTabContent(
+    adjustments: ColorAdjustments,
+    onColorChanged: (ColorAdjustments) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        PropertySliderRow(
+            label = "Exposure",
+            valueText = String.format(Locale.US, "%.2f", adjustments.exposure),
+            value = adjustments.exposure,
+            valueRange = -2.0f..2.0f,
+            onValueChange = { onColorChanged(adjustments.copy(exposure = it)) }
+        )
+        PropertySliderRow(
+            label = "Contrast",
+            valueText = String.format(Locale.US, "%.2f", adjustments.contrast),
+            value = adjustments.contrast,
+            valueRange = 0.0f..2.0f,
+            onValueChange = { onColorChanged(adjustments.copy(contrast = it)) }
+        )
+        PropertySliderRow(
+            label = "Saturation",
+            valueText = String.format(Locale.US, "%.2f", adjustments.saturation),
+            value = adjustments.saturation,
+            valueRange = 0.0f..2.0f,
+            onValueChange = { onColorChanged(adjustments.copy(saturation = it)) }
+        )
+        PropertySliderRow(
+            label = "Temperature",
+            valueText = String.format(Locale.US, "%.2f", adjustments.temperature),
+            value = adjustments.temperature,
+            valueRange = -1.0f..1.0f,
+            onValueChange = { onColorChanged(adjustments.copy(temperature = it)) }
+        )
+        PropertySliderRow(
+            label = "Vignette",
+            valueText = String.format(Locale.US, "%.2f", adjustments.vignette),
+            value = adjustments.vignette,
+            valueRange = 0.0f..1.0f,
+            onValueChange = { onColorChanged(adjustments.copy(vignette = it)) }
+        )
+    }
+}
+
+@Composable
+fun FiltersTabContent(
+    activeFilter: LutFilterType,
+    onFilterChanged: (LutFilterType) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        LutFilterType.entries.forEach { filter ->
+            val isSelected = activeFilter == filter
+            OutlinedButton(
+                onClick = { onFilterChanged(filter) },
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                )
+            ) {
+                Text(
+                    text = filter.displayName,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MaskAndBlendTabContent(
+    transform: ClipTransform,
+    onTransformChanged: (ClipTransform) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text("Blend Mode", style = MaterialTheme.typography.labelMedium)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            BlendMode.entries.forEach { mode ->
+                val isSelected = transform.blendMode == mode
+                OutlinedButton(
+                    onClick = { onTransformChanged(transform.copy(blendMode = mode)) },
+                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                    )
+                ) {
+                    Text(mode.displayName)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+        Text("Video Mask", style = MaterialTheme.typography.labelMedium)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            val maskTypes = listOf("None") + MaskType.entries.map { it.name }
+            maskTypes.forEach { typeName ->
+                val isSelected = if (typeName == "None") transform.mask == null else transform.mask?.type?.name == typeName
+                OutlinedButton(
+                    onClick = {
+                        val newMask = if (typeName == "None") null else ClipMask(type = MaskType.valueOf(typeName))
+                        onTransformChanged(transform.copy(mask = newMask))
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                    )
+                ) {
+                    Text(typeName)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SpeedCurveTabContent(
+    activeCurve: SpeedCurve?,
+    onSpeedCurveChanged: (SpeedCurve) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SpeedCurvePreset.entries.forEach { preset ->
+            val isSelected = activeCurve?.preset == preset
+            OutlinedButton(
+                onClick = { onSpeedCurveChanged(SpeedCurve.createPreset(preset)) },
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                )
+            ) {
+                Text(preset.name)
+            }
+        }
     }
 }
 

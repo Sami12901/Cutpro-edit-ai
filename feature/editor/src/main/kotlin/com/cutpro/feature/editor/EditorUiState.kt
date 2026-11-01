@@ -21,7 +21,9 @@ data class EditorUiState(
     val canRedo: Boolean = false,
     val activeInspectorTab: String = "Transform",
     val isEditingTitle: Boolean = false,
-    val titleInput: String = ""
+    val titleInput: String = "",
+    val isPromptSheetVisible: Boolean = false,
+    val isCodeRunnerSheetVisible: Boolean = false
 ) {
     val isInspectorCollapsed: Boolean get() = selectedClip == null
 
@@ -47,7 +49,7 @@ data class EditorUiState(
 
     fun getInspectorTabsForSelectedClip(): List<String> {
         return when (selectedTrackType) {
-            TrackType.VIDEO, TrackType.OVERLAY -> listOf("Transform", "Audio", "Speed", "Cut")
+            TrackType.VIDEO, TrackType.OVERLAY -> listOf("Transform", "Color", "Filters", "Mask & Blend", "Speed Curve", "Audio", "Speed", "Cut")
             TrackType.AUDIO -> listOf("Volume", "Fades", "Speed")
             TrackType.TEXT, TrackType.CAPTION -> listOf("Typography", "Animation", "Style")
             null -> emptyList()

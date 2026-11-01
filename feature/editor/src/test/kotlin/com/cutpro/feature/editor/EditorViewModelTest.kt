@@ -1,8 +1,12 @@
 package com.cutpro.feature.editor
 
 import com.cutpro.core.model.CanvasAspectRatio
+import com.cutpro.core.model.ColorAdjustments
+import com.cutpro.core.model.LutFilterType
 import com.cutpro.core.model.MediaSourceInfo
 import com.cutpro.core.model.ProjectManifest
+import com.cutpro.core.model.SpeedCurve
+import com.cutpro.core.model.SpeedCurvePreset
 import com.cutpro.core.model.TimelineClip
 import com.cutpro.core.model.TimelineTrack
 import com.cutpro.core.model.TrackType
@@ -103,11 +107,13 @@ class EditorViewModelTest {
     }
 
     @Test
-    fun inspectorTabs_forVideoClip_has4Tabs() {
+    fun inspectorTabs_forVideoClip_has8Tabs() {
         viewModel.selectClip(sampleClip, "track_v1", TrackType.VIDEO)
         val state = viewModel.uiState.value
         assertThat(state.isInspectorCollapsed).isFalse()
-        assertThat(state.getInspectorTabsForSelectedClip()).containsExactly("Transform", "Audio", "Speed", "Cut").inOrder()
+        assertThat(state.getInspectorTabsForSelectedClip()).containsExactly(
+            "Transform", "Color", "Filters", "Mask & Blend", "Speed Curve", "Audio", "Speed", "Cut"
+        ).inOrder()
     }
 
     @Test
@@ -170,5 +176,58 @@ class EditorViewModelTest {
 
         viewModel.undo()
         assertThat(viewModel.uiState.value.project!!.aspectRatio).isEqualTo(CanvasAspectRatio.RATIO_16_9)
+    }
+
+    @Test
+    fun executeAiScript_autoEditsTimelineAndSupportsUndo() {
+        val script = """
+            SPLIT(track="track_v1", time="00:03.000")
+            ADD_CAPTION(text="Bangla Caption", start="00:00.000", end="00:02.000", style="HIGHLIGHT_PILL", lang="bn")
+        """.trimIndent()
+
+        val result = viewModel.executeAiScript(script)
+        assertThat(result.isSuccess).isTrue()
+        assertThat(result.getOrNull()).isEqualTo(2)
+
+        val updatedProject = viewModel.uiState.value.project!!
+        val videoTrack = updatedProject.tracks.first { it.id == "track_v1" }
+        assertThat(videoTrack.clips).hasSize(2)
+        assertThat(viewModel.uiState.value.canUndo).isTrue()
+
+        // Verify user can tweak interactively: Undo rolls back
+        viewModel.undo()
+        val revertedProject = viewModel.uiState.value.project!!
+        val revertedVideo = revertedProject.tracks.first { it.id == "track_v1" }
+        assertThat(revertedVideo.clips).hasSize(1)
+    }
+
+    @Test
+    fun updateClipColorAndFilter_mutatesStateCleanly() {
+        viewModel.selectClip(sampleClip, "track_v1", TrackType.VIDEO)
+
+        val adjustments = ColorAdjustments(exposure = 0.5f, contrast = 1.2f, saturation = 1.3f)
+        viewModel.updateClipColor(adjustments)
+
+        val updatedClip = viewModel.uiState.value.selectedClip!!
+        assertThat(updatedClip.colorAdjustments.exposure).isEqualTo(0.5f)
+        assertThat(updatedClip.colorAdjustments.contrast).isEqualTo(1.2f)
+
+        viewModel.updateClipFilter(LutFilterType.CINEMATIC_TEAL_ORANGE)
+        assertThat(viewModel.uiState.value.selectedClip!!.filterType).isEqualTo(LutFilterType.CINEMATIC_TEAL_ORANGE)
+    }
+
+    @Test
+    fun sheetVisibility_togglesCorrectly() {
+        assertThat(viewModel.uiState.value.isPromptSheetVisible).isFalse()
+        viewModel.showPromptSheet()
+        assertThat(viewModel.uiState.value.isPromptSheetVisible).isTrue()
+        viewModel.hidePromptSheet()
+        assertThat(viewModel.uiState.value.isPromptSheetVisible).isFalse()
+
+        assertThat(viewModel.uiState.value.isCodeRunnerSheetVisible).isFalse()
+        viewModel.showCodeRunnerSheet()
+        assertThat(viewModel.uiState.value.isCodeRunnerSheetVisible).isTrue()
+        viewModel.hideCodeRunnerSheet()
+        assertThat(viewModel.uiState.value.isCodeRunnerSheetVisible).isFalse()
     }
 }

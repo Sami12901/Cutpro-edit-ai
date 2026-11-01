@@ -1,19 +1,28 @@
 package com.cutpro.core.ai.gate
 
+import com.cutpro.core.ai.model.AddCaptionAction
+import com.cutpro.core.ai.model.AddOverlayAction
 import com.cutpro.core.ai.model.AdjustSpeedAction
+import com.cutpro.core.ai.model.ApplyColorGradeAction
+import com.cutpro.core.ai.model.ApplyFilterAction
+import com.cutpro.core.ai.model.ApplySpeedCurveAction
 import com.cutpro.core.ai.model.CutSegmentAction
 import com.cutpro.core.ai.model.DeleteSilenceAction
+import com.cutpro.core.ai.model.DuckAudioAction
 import com.cutpro.core.ai.model.EditAction
 import com.cutpro.core.ai.model.MuteNoiseAction
 import com.cutpro.core.ai.model.PushInZoomAction
 import com.cutpro.core.ai.model.TrimClipAction
 import com.cutpro.core.model.ClipTransform
 import com.cutpro.core.model.ClipTrimHelper
+import com.cutpro.core.model.MediaSourceInfo
 import com.cutpro.core.model.ProjectManifest
 import com.cutpro.core.model.TimelineClip
 import com.cutpro.core.model.TimelineTrack
+import com.cutpro.core.model.TrackType
 import com.cutpro.core.timeline.TimelineOperations
 import java.util.UUID
+import kotlin.math.pow
 
 /**
  * Executes EditActions atomically on a ProjectManifest with reverse-chronological (back-to-front)
@@ -31,7 +40,11 @@ object PlanExecutionEngine {
         val actionsByTrack = actions.groupBy { it.trackId }
 
         for ((trackId, trackActions) in actionsByTrack) {
-            val track = currentProject.findTrackById(trackId) ?: continue
+            var track = currentProject.findTrackById(trackId)
+            if (track == null) {
+                track = createTrackForActions(trackId, trackActions)
+                currentProject = currentProject.copy(tracks = currentProject.tracks + track)
+            }
             val updatedTrack = applyTrackActions(track, trackActions)
             currentProject = currentProject.withUpdatedTrack(updatedTrack)
         }
@@ -120,7 +133,131 @@ object PlanExecutionEngine {
             }
         }
 
+        // 6. Apply Color Grading
+        val colorGradeActions = actions.filterIsInstance<ApplyColorGradeAction>()
+        for (cg in colorGradeActions) {
+            currentClips = currentClips.map { clip ->
+                if (clip.id == cg.clipId || (clip.timelineStartUs <= cg.startTimeUs && clip.timelineEndUs >= cg.endTimeUs)) {
+                    clip.copy(colorAdjustments = cg.adjustments)
+                } else {
+                    clip
+                }
+            }
+        }
+
+        // 7. Apply LUT Filters
+        val filterActions = actions.filterIsInstance<ApplyFilterAction>()
+        for (fa in filterActions) {
+            currentClips = currentClips.map { clip ->
+                if (clip.id == fa.clipId || (clip.timelineStartUs <= fa.startTimeUs && clip.timelineEndUs >= fa.endTimeUs)) {
+                    clip.copy(filterType = fa.filterType)
+                } else {
+                    clip
+                }
+            }
+        }
+
+        // 8. Apply Speed Curves
+        val speedCurveActions = actions.filterIsInstance<ApplySpeedCurveAction>()
+        for (sca in speedCurveActions) {
+            currentClips = currentClips.map { clip ->
+                if (clip.id == sca.clipId) {
+                    clip.copy(speedCurve = sca.curve)
+                } else {
+                    clip
+                }
+            }
+        }
+
+        // 9. Add Overlay clips
+        val overlayActions = actions.filterIsInstance<AddOverlayAction>()
+        for (oa in overlayActions) {
+            val durationUs = oa.endTimeUs - oa.startTimeUs
+            val isImg = oa.assetUriString.endsWith(".png", true) ||
+                    oa.assetUriString.endsWith(".jpg", true) ||
+                    oa.assetUriString.endsWith(".jpeg", true) ||
+                    oa.assetUriString.endsWith(".webp", true)
+            val mime = if (isImg) "image/png" else "video/mp4"
+            val overlayClip = TimelineClip(
+                id = UUID.randomUUID().toString(),
+                trackId = track.id,
+                mediaSource = MediaSourceInfo(
+                    uriString = oa.assetUriString,
+                    fileName = oa.assetUriString.substringAfterLast('/'),
+                    mimeType = mime,
+                    durationUs = durationUs.coerceAtLeast(1_000_000L)
+                ),
+                timelineStartUs = oa.startTimeUs,
+                timelineDurationUs = durationUs,
+                sourceInUs = 0L,
+                sourceOutUs = durationUs,
+                transform = ClipTransform(
+                    scaleX = oa.scale,
+                    scaleY = oa.scale,
+                    translationX = oa.translationX,
+                    translationY = oa.translationY,
+                    blendMode = oa.blendMode
+                ),
+                customTitle = "Overlay"
+            )
+            currentClips = currentClips + overlayClip
+        }
+
+        // 10. Add Caption clips
+        val captionActions = actions.filterIsInstance<AddCaptionAction>()
+        for (ca in captionActions) {
+            val durationUs = ca.endTimeUs - ca.startTimeUs
+            val captionClip = TimelineClip(
+                id = UUID.randomUUID().toString(),
+                trackId = track.id,
+                mediaSource = MediaSourceInfo(
+                    uriString = "cutpro://caption/${UUID.randomUUID()}",
+                    fileName = "caption.txt",
+                    mimeType = "text/plain",
+                    durationUs = durationUs.coerceAtLeast(1_000_000L)
+                ),
+                timelineStartUs = ca.startTimeUs,
+                timelineDurationUs = durationUs,
+                sourceInUs = 0L,
+                sourceOutUs = durationUs,
+                customTitle = ca.text
+            )
+            currentClips = currentClips + captionClip
+        }
+
+        // 11. Duck Audio
+        val duckActions = actions.filterIsInstance<DuckAudioAction>()
+        for (da in duckActions) {
+            val factor = (10.0.pow(da.targetVolumeDb / 20.0)).toFloat().coerceIn(0.01f, 1.0f)
+            currentClips = currentClips.map { clip ->
+                if (clip.timelineStartUs < da.endTimeUs && clip.timelineEndUs > da.startTimeUs) {
+                    clip.copy(audioProperties = clip.audioProperties.copy(volume = factor))
+                } else {
+                    clip
+                }
+            }
+        }
+
         return track.copy(clips = currentClips.sortedBy { it.timelineStartUs })
+    }
+
+    private fun createTrackForActions(
+        trackId: String,
+        actions: List<EditAction>
+    ): TimelineTrack {
+        val trackType = when {
+            actions.any { it is AddCaptionAction } -> TrackType.CAPTION
+            actions.any { it is AddOverlayAction } -> TrackType.OVERLAY
+            actions.any { it is DuckAudioAction } -> TrackType.AUDIO
+            else -> TrackType.VIDEO
+        }
+        val trackName = when (trackType) {
+            TrackType.CAPTION -> "Captions"
+            TrackType.OVERLAY -> "Overlay"
+            TrackType.AUDIO -> "Audio"
+            else -> "Video Track"
+        }
+        return TimelineTrack(id = trackId, name = trackName, type = trackType)
     }
 
     private fun applySingleCut(
@@ -129,7 +266,33 @@ object PlanExecutionEngine {
     ): List<TimelineClip> {
         val cutStart = cut.startTimeUs
         val cutEnd = cut.endTimeUs
-        if (cutEnd <= cutStart) return clips
+        if (cutEnd < cutStart) return clips
+
+        if (cutEnd == cutStart) {
+            // Split point action
+            return clips.flatMap { clip ->
+                if (cutStart > clip.timelineStartUs && cutStart < clip.timelineEndUs) {
+                    val leftDurationUs = cutStart - clip.timelineStartUs
+                    val leftSourceTrimUs = (leftDurationUs * clip.speedMultiplier).toLong()
+                    val leftClip = clip.copy(
+                        id = UUID.randomUUID().toString(),
+                        timelineDurationUs = leftDurationUs,
+                        sourceOutUs = clip.sourceInUs + leftSourceTrimUs
+                    )
+                    val rightDurationUs = clip.timelineEndUs - cutStart
+                    val rightClip = clip.copy(
+                        id = UUID.randomUUID().toString(),
+                        timelineStartUs = cutStart,
+                        timelineDurationUs = rightDurationUs,
+                        sourceInUs = leftClip.sourceOutUs,
+                        sourceOutUs = clip.sourceOutUs
+                    )
+                    listOf(leftClip, rightClip)
+                } else {
+                    listOf(clip)
+                }
+            }
+        }
 
         val cutDuration = cutEnd - cutStart
         val resultClips = mutableListOf<TimelineClip>()

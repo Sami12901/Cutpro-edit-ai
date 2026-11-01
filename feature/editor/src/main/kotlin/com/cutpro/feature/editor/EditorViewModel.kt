@@ -2,6 +2,9 @@ package com.cutpro.feature.editor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cutpro.core.ai.gate.PlanExecutionEngine
+import com.cutpro.core.ai.script.CutProScriptCompiler
+import com.cutpro.core.ai.script.CutProScriptParser
 import com.cutpro.core.data.database.dao.ProjectDao
 import com.cutpro.core.data.database.mapper.toDomain
 import com.cutpro.core.data.database.mapper.toEntity
@@ -9,8 +12,11 @@ import com.cutpro.core.model.CanvasAspectRatio
 import com.cutpro.core.model.ClipAudioProperties
 import com.cutpro.core.model.ClipFitMode
 import com.cutpro.core.model.ClipTransform
+import com.cutpro.core.model.ColorAdjustments
+import com.cutpro.core.model.LutFilterType
 import com.cutpro.core.model.MediaSourceInfo
 import com.cutpro.core.model.ProjectManifest
+import com.cutpro.core.model.SpeedCurve
 import com.cutpro.core.model.TimelineClip
 import com.cutpro.core.model.TimelineTrack
 import com.cutpro.core.model.TrackType
@@ -349,6 +355,63 @@ class EditorViewModel(
         val cmd = UpdateClipCommand(trackId, clip, updated, "Update Speed")
         applyCommand(cmd)
         selectClip(updated, trackId, _uiState.value.selectedTrackType)
+    }
+
+    fun updateClipColor(adjustments: ColorAdjustments) {
+        val clip = _uiState.value.selectedClip ?: return
+        val trackId = _uiState.value.selectedTrackId ?: return
+        val updated = clip.copy(colorAdjustments = adjustments)
+        val cmd = UpdateClipCommand(trackId, clip, updated, "Update Color")
+        applyCommand(cmd)
+        selectClip(updated, trackId, _uiState.value.selectedTrackType)
+    }
+
+    fun updateClipFilter(filterType: LutFilterType) {
+        val clip = _uiState.value.selectedClip ?: return
+        val trackId = _uiState.value.selectedTrackId ?: return
+        val updated = clip.copy(filterType = filterType)
+        val cmd = UpdateClipCommand(trackId, clip, updated, "Update Filter: ${filterType.displayName}")
+        applyCommand(cmd)
+        selectClip(updated, trackId, _uiState.value.selectedTrackType)
+    }
+
+    fun updateClipSpeedCurve(curve: SpeedCurve) {
+        val clip = _uiState.value.selectedClip ?: return
+        val trackId = _uiState.value.selectedTrackId ?: return
+        val updated = clip.copy(speedCurve = curve)
+        val cmd = UpdateClipCommand(trackId, clip, updated, "Update Speed Curve: ${curve.preset.name}")
+        applyCommand(cmd)
+        selectClip(updated, trackId, _uiState.value.selectedTrackType)
+    }
+
+    fun showPromptSheet() {
+        _uiState.update { it.copy(isPromptSheetVisible = true) }
+    }
+
+    fun hidePromptSheet() {
+        _uiState.update { it.copy(isPromptSheetVisible = false) }
+    }
+
+    fun showCodeRunnerSheet() {
+        _uiState.update { it.copy(isCodeRunnerSheetVisible = true) }
+    }
+
+    fun hideCodeRunnerSheet() {
+        _uiState.update { it.copy(isCodeRunnerSheetVisible = false) }
+    }
+
+    fun executeAiScript(scriptText: String): Result<Int> {
+        val current = _uiState.value.project ?: return Result.failure(IllegalStateException("No active project"))
+        return try {
+            val ast = CutProScriptParser.parse(scriptText)
+            val plan = CutProScriptCompiler.compile(ast, current)
+            val updated = PlanExecutionEngine.executeActions(current, plan.actions)
+            val cmd = SnapshotTimelineCommand("AI Script: ${plan.actions.size} actions", current, updated)
+            applyCommand(cmd)
+            Result.success(plan.actions.size)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     fun undo() {

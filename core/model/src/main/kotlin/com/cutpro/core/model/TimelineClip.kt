@@ -17,6 +17,9 @@ data class TimelineClip(
     val fitMode: ClipFitMode = ClipFitMode.FIT,
     val transform: ClipTransform = ClipTransform(),
     val audioProperties: ClipAudioProperties = ClipAudioProperties(),
+    val colorAdjustments: ColorAdjustments = ColorAdjustments(),
+    val filterType: LutFilterType = LutFilterType.NONE,
+    val speedCurve: SpeedCurve? = null,
     val customTitle: String? = null
 ) {
     val timelineEndUs: Long get() = timelineStartUs + timelineDurationUs

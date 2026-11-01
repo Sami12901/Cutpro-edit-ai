@@ -35,7 +35,8 @@ from tests.e2e.tier1_features import (
     test_subtitles,
     test_ai_subsystem,
     test_export_pipeline,
-    test_release_packaging
+    test_release_packaging,
+    test_v2_features
 )
 
 # Import all Tier 2 Boundary test modules
@@ -89,7 +90,8 @@ def collect_all_tests() -> List[OpaqueBoxTestCase]:
         test_subtitles,
         test_ai_subsystem,
         test_export_pipeline,
-        test_release_packaging
+        test_release_packaging,
+        test_v2_features
     ]
     for mod in tier1_modules:
         if hasattr(mod, "register_tests"):

@@ -9,7 +9,10 @@ data class ClipTransform(
     val translationX: Float = 0.0f, // Normalized offset [-1.0, 1.0] relative to canvas
     val translationY: Float = 0.0f, // Normalized offset [-1.0, 1.0] relative to canvas
     val rotationDegrees: Float = 0.0f,
-    val opacity: Float = 1.0f
+    val opacity: Float = 1.0f,
+    val blendMode: BlendMode = BlendMode.NORMAL,
+    val mask: ClipMask? = null,
+    val kenBurns: KenBurnsEffect? = null
 ) {
     init {
         require(scaleX != 0f) { "scaleX cannot be 0" }
@@ -22,7 +25,8 @@ data class ClipTransform(
     val isIdentity: Boolean
         get() = scaleX == 1.0f && scaleY == 1.0f &&
                 translationX == 0.0f && translationY == 0.0f &&
-                rotationDegrees == 0.0f && opacity == 1.0f
+                rotationDegrees == 0.0f && opacity == 1.0f &&
+                blendMode == BlendMode.NORMAL && mask == null && kenBurns == null
 
     fun withScale(uniformScale: Float): ClipTransform {
         require(uniformScale != 0f) { "uniformScale cannot be 0" }

@@ -7,6 +7,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCut
@@ -78,4 +79,5 @@ object CutProIcons {
     val Locked: ImageVector = Icons.Filled.Lock
     val Unlocked: ImageVector = Icons.Filled.LockOpen
     val Grid: ImageVector = Icons.Filled.GridOn
+    val AiMagic: ImageVector = Icons.Filled.AutoAwesome
 }

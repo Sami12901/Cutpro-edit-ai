@@ -14,6 +14,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.cutpro.core.model.CanvasAspectRatio
+import com.cutpro.feature.editor.ai.AiCodeRunnerSheet
+import com.cutpro.feature.editor.ai.TranscriptPromptSheet
 import com.cutpro.feature.editor.canvas.PreviewCanvasArea
 import com.cutpro.feature.editor.inspector.ContextualPropertiesInspector
 import com.cutpro.feature.editor.timeline.MultitrackTimelineArea
@@ -55,7 +57,9 @@ fun EditorScreen(
                 onRedoClick = { viewModel.redo() },
                 onTitleChanged = { viewModel.updateProjectTitle(it) },
                 onAspectRatioChanged = { viewModel.setAspectRatio(it) },
-                onExportClick = { onNavigateToExport(projectId) }
+                onExportClick = { onNavigateToExport(projectId) },
+                onOpenPromptSheet = { viewModel.showPromptSheet() },
+                onOpenCodeRunnerSheet = { viewModel.showCodeRunnerSheet() }
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -120,7 +124,30 @@ fun EditorScreen(
                 onTransformChanged = { viewModel.updateClipTransform(it) },
                 onAudioChanged = { viewModel.updateClipAudio(it) },
                 onSpeedChanged = { viewModel.updateClipSpeed(it) },
+                onColorChanged = { viewModel.updateClipColor(it) },
+                onFilterChanged = { viewModel.updateClipFilter(it) },
+                onSpeedCurveChanged = { viewModel.updateClipSpeedCurve(it) },
                 onCloseClick = { viewModel.deselectClip() }
+            )
+        }
+
+        // AI Sheets
+        if (uiState.isPromptSheetVisible) {
+            TranscriptPromptSheet(
+                project = activeProject,
+                segments = emptyList(),
+                onDismiss = { viewModel.hidePromptSheet() },
+                onNavigateToCodeRunner = {
+                    viewModel.hidePromptSheet()
+                    viewModel.showCodeRunnerSheet()
+                }
+            )
+        }
+
+        if (uiState.isCodeRunnerSheetVisible) {
+            AiCodeRunnerSheet(
+                onDismiss = { viewModel.hideCodeRunnerSheet() },
+                onExecuteScript = { viewModel.executeAiScript(it) }
             )
         }
     }

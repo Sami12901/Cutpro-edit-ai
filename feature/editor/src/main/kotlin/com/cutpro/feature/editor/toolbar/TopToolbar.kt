@@ -54,11 +54,14 @@ fun TopToolbar(
     onTitleChanged: (String) -> Unit,
     onAspectRatioChanged: (CanvasAspectRatio) -> Unit,
     onExportClick: () -> Unit,
+    onOpenPromptSheet: () -> Unit = {},
+    onOpenCodeRunnerSheet: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isEditingTitle by remember { mutableStateOf(false) }
     var titleInput by remember(title) { mutableStateOf(title) }
     var isRatioDropdownOpen by remember { mutableStateOf(false) }
+    var isAiMenuOpen by remember { mutableStateOf(false) }
 
     TopAppBar(
         modifier = modifier.fillMaxWidth(),
@@ -100,6 +103,45 @@ fun TopToolbar(
                 onClick = onRedoClick,
                 enabled = canRedo
             )
+
+            // AI Tools Menu
+            Box {
+                CutProIconButton(
+                    icon = CutProIcons.AiMagic,
+                    contentDescription = "AI Video Tools",
+                    onClick = { isAiMenuOpen = true }
+                )
+
+                DropdownMenu(
+                    expanded = isAiMenuOpen,
+                    onDismissRequest = { isAiMenuOpen = false }
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Generate AI Edit Prompt",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        onClick = {
+                            isAiMenuOpen = false
+                            onOpenPromptSheet()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Run AI Edit Script / Code",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        onClick = {
+                            isAiMenuOpen = false
+                            onOpenCodeRunnerSheet()
+                        }
+                    )
+                }
+            }
 
             // Aspect Ratio Quick Toggle
             Box {

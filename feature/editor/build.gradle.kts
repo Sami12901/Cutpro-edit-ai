@@ -36,6 +36,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:playback"))
     implementation(project(":core:audio"))
+    implementation(project(":core:ai"))
 
     implementation(libs.androidx.media3.common)
     implementation(libs.androidx.media3.exoplayer)
