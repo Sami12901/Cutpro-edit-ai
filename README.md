@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-green" alt="UI" />
   <img src="https://img.shields.io/badge/Engine-Media3%20ExoPlayer%20%26%20Transformer-orange" alt="Media3" />
   <img src="https://img.shields.io/badge/License-MIT-teal" alt="License" />
-  <img src="https://img.shields.io/badge/Tests-915%2F915%20Passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-934%2F934%20Passing-brightgreen" alt="Tests" />
 </p>
 
 ---
