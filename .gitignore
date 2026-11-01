@@ -64,3 +64,10 @@ Thumbs.db
 
 # Agent scratch/state
 .agents/
+
+# Python test artifacts
+__pycache__/
+*.pyc
+*.pyo
+tests/e2e/reports/
+

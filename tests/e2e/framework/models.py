@@ -818,8 +818,13 @@ def is_safe_zip_path(entry_name: str) -> bool:
 
 def validate_zip_entry_path(destination_dir: str, entry_name: str) -> str:
     """Strict canonical path check preventing Zip-Slip directory traversal."""
+    if '\x00' in entry_name:
+        raise ValueError(f"Null byte in entry name: {entry_name}")
+    normalized_entry = entry_name.replace('\\', '/')
+    if re.match(r'^[a-zA-Z]:', normalized_entry):
+        raise PermissionError(f"Zip-Slip vulnerability detected! Absolute drive in entry '{entry_name}'.")
     canonical_dest = os.path.realpath(os.path.abspath(destination_dir))
-    target_path = os.path.realpath(os.path.abspath(os.path.join(canonical_dest, entry_name)))
+    target_path = os.path.realpath(os.path.abspath(os.path.join(canonical_dest, normalized_entry)))
     # Ensure target path starts with canonical destination + sep
     dest_prefix = canonical_dest if canonical_dest.endswith(os.sep) else canonical_dest + os.sep
     if not target_path.startswith(dest_prefix) and target_path != canonical_dest:
