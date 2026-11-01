@@ -20,6 +20,9 @@ object ZipSecurityValidator {
             throw SecurityException("Null byte injection detected in entry name: '$entryName'")
         }
 
+        // Normalize backslashes to forward slashes so Windows path traversal payloads cannot bypass canonical checks on Linux/macOS
+        val normalizedEntryName = entryName.replace('\\', '/')
+
         val canonicalDestDir = destinationDir.canonicalFile
         val canonicalDestPrefix = if (canonicalDestDir.path.endsWith(File.separator)) {
             canonicalDestDir.path
@@ -27,7 +30,7 @@ object ZipSecurityValidator {
             canonicalDestDir.path + File.separator
         }
 
-        val targetFile = File(destinationDir, entryName).canonicalFile
+        val targetFile = File(destinationDir, normalizedEntryName).canonicalFile
         val targetPath = targetFile.path
 
         if (!targetPath.startsWith(canonicalDestPrefix)) {
